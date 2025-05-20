@@ -49,8 +49,8 @@ To set up the project correctly, follow these steps:
 
 1. Create a parent directory for all components:
 ```bash
-mkdir mpc-android-sdk
-cd mpc-android-sdk
+mkdir project
+cd project
 ```
 
 2. Clone the main MPC Android SDK repository:
