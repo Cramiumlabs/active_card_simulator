@@ -5,42 +5,11 @@ This is a sample application demonstrating the usage of the MPC Android SDK and 
 ## Project Structure
 
 ```
-mpc-android-sdk/
-├── .git/
-├── .DS_Store
-├── README.md
-├── activecard/
-│   ├── .git/
-│   ├── .DS_Store
-│   ├── build/
-│   ├── src/
-│   ├── docs/
-│   ├── build.gradle.kts
-│   ├── consumer-rules.pro
-│   ├── proguard-rules.pro
-│   └── .gitignore
-├── sample/
-│   ├── .git/
-│   ├── .idea/
-│   ├── app/
-│   ├── .gradle/
-│   ├── gradle/
-│   ├── .kotlin/
-│   ├── .gitignore
-│   ├── build.gradle.kts
-│   ├── settings.gradle.kts
-│   ├── local.properties
-│   ├── gradlew
-│   ├── gradlew.bat
-│   └── gradle.properties
-├── sdk/
-│   ├── build/
-│   ├── src/
-│   ├── build.gradle.kts
-│   ├── proguard-rules.pro
-│   ├── consumer-rules.pro
-│   └── .gitignore
-└── repo/
+project/                 # Parent directory
+├── demo/                # Demo app
+├── sdk/                 # SDK module (from mpc-android-sdk)
+├── activecard/          # ActiveCard module (from activecard-android-sdk)
+└── repo/                # Repository module (from mpc-android-sdk)
 ```
 
 ## Setup Instructions
@@ -55,25 +24,26 @@ cd project
 
 2. Clone the main MPC Android SDK repository:
 ```bash
-git clone https://github.com/Cramiumlabs/mpc-android-sdk.git .
+git clone https://github.com/Cramiumlabs/mpc-android-sdk.git 
 ```
 
 3. Clone the ActiveCard SDK repository into the `activecard` directory:
 ```bash
-git clone https://github.com/Cramiumlabs/activecard-android-sdk.git activecard
+git clone https://github.com/Cramiumlabs/activecard-android-sdk.git 
 ```
+
 
 Your final directory structure should look like this:
 ```
-project/           # Parent directory
-├── sample/               # Sample app (from mpc-android-sdk)
+project/                 # Parent directory
+├── demo/                # Demo app
 ├── sdk/                 # SDK module (from mpc-android-sdk)
 ├── activecard/          # ActiveCard module (from activecard-android-sdk)
 └── repo/                # Repository module (from mpc-android-sdk)
 ```
 
 Important Notes:
-- The `sample`, `sdk`, and `repo` directories should be at the same level as the `activecard` directory
+- The  `sdk`, and `repo` directories should be at the same level as the `activecard` directory
 - The `settings.gradle.kts` file is configured to look for modules in these specific locations
 - Make sure all directories are at the same level in the parent directory
 
