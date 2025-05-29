@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cramium.activecard.ActiveCardServer
+import com.cramium.activecard.ActiveCardServerCallback
 import com.cramium.activecard.ActiveCardServerImpl
 import com.cramium.sdk.client.MpcClient
 import com.cramium.sdk.client.MpcClientImpl
@@ -13,6 +14,8 @@ import com.cramium.sdk.utils.stringToByteArray
 import com.cramium.sdk.utils.toHexString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,18 +35,23 @@ class SimulatorViewModel @Inject constructor(
         private const val KEY_AC_PRIVATE_KEY = "key_ac_private_key"
         private const val KEY_MOBILE_PUBLIC_KEY = "key_mobile_public_key"
     }
-
-    private val mpcClient: MpcClient = MpcClientImpl(
-        context = applicationContext,
-        apiKey = "YOUR_API_KEY",
-        serverAddress = "YOUR_SERVER_ADDRESS",
-        accessToken = "YOUR_ACCESS_TOKEN",
-        mode = "development",
-        authServerAddress = "https://example.com",
-        cloudService = GoogleServiceImpl(applicationContext, "YOUR_PROJECT_ID")
-    )
-
-    private val acSimulator: ActiveCardServer = ActiveCardServerImpl(applicationContext)
+    private val mpcClient: MpcClient
+    private val acSimulator: ActiveCardServer
+    private var keygenJob: Job? = null
+    init {
+        val acServerCallback: ActiveCardServerCallback = ActiveCardServerCallback()
+        mpcClient = MpcClientImpl(
+            context = applicationContext,
+            apiKey = "YOUR_API_KEY",
+            serverAddress = "YOUR_SERVER_ADDRESS",
+            mode = "development",
+            authServerAddress = "https://example.com",
+            cloudService = GoogleServiceImpl(applicationContext, "YOUR_PROJECT_ID"),
+            localPartyCallback = acServerCallback,
+            isLocalParty = true
+        )
+        acSimulator = ActiveCardServerImpl(applicationContext, acServerCallback, mpcClient)
+    }
     private val _uiState = MutableStateFlow(ACSimulatorState())
     val uiState: StateFlow<ACSimulatorState> = _uiState
         .stateIn(
@@ -100,20 +108,26 @@ class SimulatorViewModel @Inject constructor(
     fun start() {
         if (!uiState.value.isRegister) return
         acSimulator.startAdvertising(_uiState.value.deviceName)
-        val (publicKey, privateKey) = getIdentityKeyPair()
+//        val (publicKey, privateKey) = getIdentityKeyPair()
 
-        viewModelScope.launch {
-            Log.d("AC_Simulator", "Start authentication flow")
-            acSimulator.observeAuthenticationFlow(
-                publicKey,
-                privateKey,
-                saveMobilePublicKey = {
-                    Log.d("AC_Simulator", "Authentication successful mobile key: ${it.toHexString()}")
-                    val prefs =
-                        applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    prefs.edit().putString(KEY_MOBILE_PUBLIC_KEY, it.toHexString()).apply()
-                }
-            ).collect {}
+//        viewModelScope.launch {
+//            Log.d("AC_Simulator", "Start authentication flow")
+//            acSimulator.observeAuthenticationFlow(
+//                publicKey,
+//                privateKey,
+//                saveMobilePublicKey = {
+//                    Log.d("AC_Simulator", "Authentication successful mobile key: ${it.toHexString()}")
+//                    val prefs =
+//                        applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+//                    prefs.edit().putString(KEY_MOBILE_PUBLIC_KEY, it.toHexString()).apply()
+//                }
+//            ).collect {}
+//        }
+    }
+
+    fun startKeyGen() {
+        viewModelScope.launch (Dispatchers.IO) {
+            keygenJob =  acSimulator.keygen()
         }
     }
 }

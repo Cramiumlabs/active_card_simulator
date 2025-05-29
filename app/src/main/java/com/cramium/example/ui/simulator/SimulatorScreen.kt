@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,15 +35,15 @@ import com.cramium.example.ui.demo.getDeviceUuid
 @Composable
 fun SimulatorScreen(
     modifier: Modifier = Modifier,
-    viewModel: SimulatorViewModel = hiltViewModel(),
+    vm: SimulatorViewModel = hiltViewModel(),
     lifeCycleOwner: LifecycleOwner = LocalLifecycleOwner.current
 ) {
     val context = LocalContext.current
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by vm.uiState.collectAsState()
     DisposableEffect(lifeCycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> viewModel.getUser()
+                Lifecycle.Event.ON_START -> vm.getUser()
                 else -> {}
             }
         }
@@ -52,7 +54,7 @@ fun SimulatorScreen(
     }
     RequestBluetoothPermissions { granted ->
         if (granted) {
-            viewModel.start()
+            vm.start()
         } else {
             Toast.makeText(context, "Bluetooth permission denied", Toast.LENGTH_SHORT).show()
         }
@@ -66,7 +68,7 @@ fun SimulatorScreen(
         if (!uiState.isRegister) {
             RegisterUserDialog(onDone = { pair ->
                 val (userName, deviceName) = pair
-                viewModel.saveUserName(userName, deviceName)
+                vm.saveUserName(userName, deviceName)
             })
         } else {
             Box(
@@ -93,6 +95,13 @@ fun SimulatorScreen(
                         .size(300.dp)
                         .border(1.dp, Color.Black, RoundedCornerShape(16.dp))
                 )
+            }
+
+            Button(
+                onClick = { vm.startKeyGen() },
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text("Start keygen")
             }
         }
     }

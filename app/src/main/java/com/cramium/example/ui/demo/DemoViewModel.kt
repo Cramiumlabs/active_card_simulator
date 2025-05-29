@@ -7,8 +7,8 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cramium.activecard.ActiveCardClient
+import com.cramium.activecard.ActiveCardClientCallback
 import com.cramium.activecard.ActiveCardClientImpl
-import com.cramium.activecard.ble.BondStateReceiver
 import com.cramium.activecard.ble.ConnectionUpdateError
 import com.cramium.activecard.ble.ConnectionUpdateSuccess
 import com.cramium.activecard.ble.ScanInfo
@@ -18,9 +18,11 @@ import com.cramium.sdk.client.MpcClient
 import com.cramium.sdk.client.MpcClientImpl
 import com.cramium.sdk.client.Passkey
 import com.cramium.sdk.client.PasskeyImpl
+import com.cramium.sdk.model.mpc.MpcGroup
 import com.cramium.sdk.repositories.UDMRepository
 import com.cramium.sdk.repositories.UDMRepositoryImpl
 import com.cramium.sdk.service.GoogleServiceImpl
+import com.cramium.sdk.utils.Constants
 import com.cramium.sdk.utils.stringToByteArray
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
@@ -30,9 +32,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -48,6 +50,7 @@ class DemoViewModel @Inject constructor(
     private var activeCardDevice: ScanInfo? = null
     private var client: MpcClient? = null
     private var scanJob: Job? = null
+    private var keygenJob: Job? = null
     private var passkey: Passkey? = null
     private var udmRepository: UDMRepository? = null
     private val gson = GsonBuilder()
@@ -58,9 +61,9 @@ class DemoViewModel @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.IO)
     companion object {
         // TODO: Replace your access token here
-        const val MODE = "development"
+        const val MODE = "production"
         const val AUTH_SERVER_ADDRESS = "https://trust-auth.mpc-dev.cramiumtech.com"
-        const val SERVER_ADDRESS = "trust-api-edge.mpc-dev.cramiumtech.com"
+        const val SERVER_ADDRESS = "trust-api-edge.mpc-dev.cramiumlabs.com"
         const val SERVER_ID = "230303543292-reoj1d8ffas6hrjs2t7nfpakgl2dn6cn.apps.googleusercontent.com"
         const val API_KEY = "gXjV2AdnVdQ86wHpxu7JxCPIoYvhbKds"
     }
@@ -68,16 +71,18 @@ class DemoViewModel @Inject constructor(
     fun initClient(activityContext: Context) {
         val ggService = GoogleServiceImpl(context, SERVER_ID)
         passkey = PasskeyImpl(activityContext, API_KEY, AUTH_SERVER_ADDRESS)
-        client = MpcClientImpl(
+        val activeCardCallback = ActiveCardClientCallback()
+        val mpcClient = MpcClientImpl(
             context = activityContext,
             mode = MODE,
             authServerAddress = AUTH_SERVER_ADDRESS,
             serverAddress = SERVER_ADDRESS,
-            accessToken = "",
             apiKey = API_KEY,
-            cloudService = ggService
+            cloudService = ggService,
+            localPartyCallback = activeCardCallback
         )
-        activeCardClient = ActiveCardClientImpl(context)
+        client = mpcClient
+        activeCardClient = ActiveCardClientImpl(context, activeCardCallback, mpcClient)
     }
 
     fun startScan(qrCode: String) {
@@ -112,7 +117,7 @@ class DemoViewModel @Inject constructor(
                             )
                             else if (connection.connectionState == ConnectionState.CONNECTED) {
                                 Log.d("AC_Simulator", "Connected to device: ${connection.deviceId}")
-                                startAuthenticationFlow(onDone)
+//                                startAuthenticationFlow(onDone)
                                 activeCardClient?.negotiateMtuSize(connection.deviceId, 250)?.collect {}
                             }
                         }
@@ -185,6 +190,46 @@ class DemoViewModel @Inject constructor(
                         response.accessToken
                     )
                 }
+        }
+    }
+
+
+    var keygenGroup: MpcGroup? = null
+
+    fun registerPaillierGroup() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val paillierGroup = client!!.createPaillierGroup(3)
+            client?.registerNewLocalPartyToMpcGroup(paillierGroup.id)
+        }
+    }
+
+    fun registerGroup() {
+        viewModelScope.launch(Dispatchers.IO) {
+//            val paillierGroup = client!!.createPaillierGroup(3)
+//            client?.registerNewLocalPartyToMpcGroup(paillierGroup.id)
+//            keygenGroup  = client!!.createMpcKeygenGroup(3, "AC", paillierGroupId = "47741677175066651")
+            val paillierGroup = client!!.getMpcGroups(pageSize = 5, pageToken = "").first().groups.first()
+            keygenGroup  = client!!.createMpcKeygenGroup(3, "AC", paillierGroup.id)
+            Log.d("AC_Simulator", "Keygen group id: ${keygenGroup!!.id}")
+            client?.registerNewLocalPartyToMpcGroup(keygenGroup!!.id)
+        }
+    }
+
+    fun keygen() {
+        val mnemonic = "chuckle resemble plate speak crazy measure wide room gloom amazing advice social"
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                client?.newMnemonicKeyGen(keygenGroup!!, mnemonic, Constants.mnemonicWallets)
+            } catch (e: Exception) {
+                Log.d("AC_Simulator", "Keygen error: $e - ${e.cause?.message}")
+            }
+        }
+    }
+
+    fun observeKeygen() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val id = activeCardDevice?.deviceId ?: return@launch
+            keygenJob = activeCardClient?.keygen(id)
         }
     }
 
