@@ -96,13 +96,6 @@ fun SimulatorScreen(
                         .border(1.dp, Color.Black, RoundedCornerShape(16.dp))
                 )
             }
-
-            Button(
-                onClick = { vm.startKeyGen() },
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text("Start keygen")
-            }
         }
     }
 }

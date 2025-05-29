@@ -110,32 +110,18 @@ fun DemoScreen(
             ) {
                 Text("Connect to device")
             }
-
-            Button(
-                onClick = { vm.observeKeygen() },
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text("Observe keygen")
-            }
             Button(
                 onClick = { vm.registerPaillierGroup() },
                 modifier = Modifier.padding(16.dp)
             ) {
-                Text("Register paillier group")
+                Text("Create paillier group")
             }
 
             Button(
                 onClick = { vm.registerGroup() },
                 modifier = Modifier.padding(16.dp)
             ) {
-                Text("Register keygen group")
-            }
-
-            Button(
-                onClick = { vm.keygen() },
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text("Start keygen")
+                Text("Create keygen group")
             }
         }
     }

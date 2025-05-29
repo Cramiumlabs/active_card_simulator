@@ -32,6 +32,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -112,9 +114,11 @@ class DemoViewModel @Inject constructor(
                     Log.d("AC_Simulator", "Connection status: $connection")
                     when (connection) {
                         is ConnectionUpdateSuccess -> {
-                            if (connection.connectionState == ConnectionState.DISCONNECTED) activeCardClient?.disconnect(
-                                connection.deviceId
-                            )
+                            if (connection.connectionState == ConnectionState.DISCONNECTED) {
+                                activeCardClient?.disconnect(connection.deviceId)
+                                keygenJob?.cancel()
+                                keygenJob = null
+                            }
                             else if (connection.connectionState == ConnectionState.CONNECTED) {
                                 Log.d("AC_Simulator", "Connected to device: ${connection.deviceId}")
 //                                startAuthenticationFlow(onDone)
@@ -196,40 +200,38 @@ class DemoViewModel @Inject constructor(
 
     var keygenGroup: MpcGroup? = null
 
+    fun startKeygenFlow() {
+        val id = activeCardDevice?.deviceId ?: return
+        if (keygenJob != null) return
+        keygenJob = activeCardClient?.keygen(id)
+    }
+
     fun registerPaillierGroup() {
         viewModelScope.launch(Dispatchers.IO) {
-            val paillierGroup = client!!.createPaillierGroup(3)
-            client?.registerNewLocalPartyToMpcGroup(paillierGroup.id)
+            try {
+                startKeygenFlow()
+                val paillierGroup = client!!.createPaillierGroup(3)
+                client?.registerNewLocalPartyToMpcGroup(paillierGroup.id)
+                delay(2000)
+                client?.newPaillier(paillierGroup.id)
+            } catch (e: Exception) {
+                Log.d("AC_Simulator", "Paillier error: $e - ${e.cause?.message}")
+            }
         }
     }
 
     fun registerGroup() {
         viewModelScope.launch(Dispatchers.IO) {
-//            val paillierGroup = client!!.createPaillierGroup(3)
-//            client?.registerNewLocalPartyToMpcGroup(paillierGroup.id)
-//            keygenGroup  = client!!.createMpcKeygenGroup(3, "AC", paillierGroupId = "47741677175066651")
-            val paillierGroup = client!!.getMpcGroups(pageSize = 5, pageToken = "").first().groups.first()
-            keygenGroup  = client!!.createMpcKeygenGroup(3, "AC", paillierGroup.id)
-            Log.d("AC_Simulator", "Keygen group id: ${keygenGroup!!.id}")
-            client?.registerNewLocalPartyToMpcGroup(keygenGroup!!.id)
-        }
-    }
-
-    fun keygen() {
-        val mnemonic = "chuckle resemble plate speak crazy measure wide room gloom amazing advice social"
-        viewModelScope.launch(Dispatchers.IO) {
             try {
-                client?.newMnemonicKeyGen(keygenGroup!!, mnemonic, Constants.mnemonicWallets)
+                startKeygenFlow()
+                val paillierGroup = client!!.getMpcGroups(pageSize = 5, pageToken = "").first().groups.first()
+                keygenGroup  = client!!.createMpcKeygenGroup(3, "AC", paillierGroup.id)
+                Log.d("AC_Simulator", "Keygen group id: ${keygenGroup!!.id}")
+                client?.registerNewLocalPartyToMpcGroup(keygenGroup!!.id)
+                client?.newMnemonicKeyGen(keygenGroup!!, Constants.mnemonic, Constants.mnemonicWallets)
             } catch (e: Exception) {
                 Log.d("AC_Simulator", "Keygen error: $e - ${e.cause?.message}")
             }
-        }
-    }
-
-    fun observeKeygen() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val id = activeCardDevice?.deviceId ?: return@launch
-            keygenJob = activeCardClient?.keygen(id)
         }
     }
 

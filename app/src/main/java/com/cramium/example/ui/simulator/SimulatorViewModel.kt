@@ -38,6 +38,7 @@ class SimulatorViewModel @Inject constructor(
     private val mpcClient: MpcClient
     private val acSimulator: ActiveCardServer
     private var keygenJob: Job? = null
+
     init {
         val acServerCallback: ActiveCardServerCallback = ActiveCardServerCallback()
         mpcClient = MpcClientImpl(
@@ -51,6 +52,7 @@ class SimulatorViewModel @Inject constructor(
             isLocalParty = true
         )
         acSimulator = ActiveCardServerImpl(applicationContext, acServerCallback, mpcClient)
+        keygenJob =  acSimulator.keygen()
     }
     private val _uiState = MutableStateFlow(ACSimulatorState())
     val uiState: StateFlow<ACSimulatorState> = _uiState
@@ -125,11 +127,6 @@ class SimulatorViewModel @Inject constructor(
 //        }
     }
 
-    fun startKeyGen() {
-        viewModelScope.launch (Dispatchers.IO) {
-            keygenJob =  acSimulator.keygen()
-        }
-    }
 }
 
 data class ACSimulatorState(
