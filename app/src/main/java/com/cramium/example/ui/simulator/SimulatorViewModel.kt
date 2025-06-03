@@ -110,21 +110,21 @@ class SimulatorViewModel @Inject constructor(
     fun start() {
         if (!uiState.value.isRegister) return
         acSimulator.startAdvertising(_uiState.value.deviceName)
-//        val (publicKey, privateKey) = getIdentityKeyPair()
+        val (publicKey, privateKey) = getIdentityKeyPair()
 
-//        viewModelScope.launch {
-//            Log.d("AC_Simulator", "Start authentication flow")
-//            acSimulator.observeAuthenticationFlow(
-//                publicKey,
-//                privateKey,
-//                saveMobilePublicKey = {
-//                    Log.d("AC_Simulator", "Authentication successful mobile key: ${it.toHexString()}")
-//                    val prefs =
-//                        applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-//                    prefs.edit().putString(KEY_MOBILE_PUBLIC_KEY, it.toHexString()).apply()
-//                }
-//            ).collect {}
-//        }
+        viewModelScope.launch {
+            Log.d("AC_Simulator", "Start authentication flow")
+            acSimulator.observeAuthenticationFlow(
+                publicKey,
+                privateKey,
+                saveMobilePublicKey = {
+                    Log.d("AC_Simulator", "Authentication successful mobile key: ${it.toHexString()}")
+                    val prefs =
+                        applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    prefs.edit().putString(KEY_MOBILE_PUBLIC_KEY, it.toHexString()).apply()
+                }
+            ).collect {}
+        }
     }
 
 }

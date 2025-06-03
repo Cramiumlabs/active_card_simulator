@@ -121,7 +121,7 @@ class DemoViewModel @Inject constructor(
                             }
                             else if (connection.connectionState == ConnectionState.CONNECTED) {
                                 Log.d("AC_Simulator", "Connected to device: ${connection.deviceId}")
-//                                startAuthenticationFlow(onDone)
+                                startAuthenticationFlow(onDone)
                                 activeCardClient?.negotiateMtuSize(connection.deviceId, 250)?.collect {}
                             }
                         }
