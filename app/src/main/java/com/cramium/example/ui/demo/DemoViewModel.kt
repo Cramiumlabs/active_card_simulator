@@ -24,6 +24,7 @@ import com.cramium.sdk.repositories.UDMRepositoryImpl
 import com.cramium.sdk.service.GoogleServiceImpl
 import com.cramium.sdk.utils.Constants
 import com.cramium.sdk.utils.stringToByteArray
+import com.cramium.sdk.utils.toHexString
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,15 +33,26 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import org.web3j.protocol.Web3j
+import org.web3j.protocol.core.DefaultBlockParameterName
+import org.web3j.protocol.core.methods.request.Transaction
+import org.web3j.protocol.core.methods.response.EthSendTransaction
+import org.web3j.protocol.http.HttpService
+import java.math.BigInteger
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltViewModel
@@ -48,11 +60,15 @@ import javax.inject.Inject
 class DemoViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+    private val _uiState: MutableStateFlow<DemoState> = MutableStateFlow(DemoState())
+    val uiState
+        get() = _uiState.stateIn(viewModelScope, SharingStarted.Eagerly, DemoState())
     private var activeCardClient: ActiveCardClient? = null
     private var activeCardDevice: ScanInfo? = null
     private var client: MpcClient? = null
     private var scanJob: Job? = null
     private var keygenJob: Job? = null
+    private var signingJob: Job? = null
     private var passkey: Passkey? = null
     private var udmRepository: UDMRepository? = null
     private val gson = GsonBuilder()
@@ -69,6 +85,83 @@ class DemoViewModel @Inject constructor(
         const val SERVER_ID = "230303543292-reoj1d8ffas6hrjs2t7nfpakgl2dn6cn.apps.googleusercontent.com"
         const val API_KEY = "gXjV2AdnVdQ86wHpxu7JxCPIoYvhbKds"
     }
+
+    private val okHttpClient = OkHttpClient.Builder().apply {
+        connectTimeout(10L, TimeUnit.SECONDS)
+        writeTimeout(10L, TimeUnit.SECONDS)
+        readTimeout(10L, TimeUnit.SECONDS)
+    }
+        .build()
+
+    private val web3j: Web3j = Web3j.build(
+        HttpService(
+            "https://ethereum-sepolia.core.chainstack.com/8e987b5ee37b8ca8da7ae14f18eecc18",
+            okHttpClient
+        )
+    )
+
+    private suspend fun getCurrentGasPrice(): BigInteger? {
+        return try {
+            val ethGasPrice = web3j.ethGasPrice().sendAsync().await() // Using .await() for coroutines
+            ethGasPrice.gasPrice
+        } catch (e: Exception) {
+            // Handle error (e.g., network issue, node unavailable)
+            println("Error fetching gas price: ${e.message}")
+            null
+        }
+    }
+
+    private suspend fun getAccountNonce(accountAddress: String): BigInteger? {
+        return try {
+            val ethGetTransactionCount = web3j.ethGetTransactionCount(
+                accountAddress,
+                DefaultBlockParameterName.LATEST
+            ).sendAsync().await() // Using .await() for coroutines
+            ethGetTransactionCount.transactionCount
+        } catch (e: Exception) {
+            println("Error fetching nonce for $accountAddress: ${e.message}")
+            null
+        }
+    }
+
+
+    private suspend fun estimateGasLimit(fromAddress: String, toAddress: String, data: String? = null, value: BigInteger? = null): BigInteger? {
+        return try {
+            val transaction = Transaction.createEthCallTransaction(fromAddress, toAddress, data, value)
+            val ethEstimateGas = web3j.ethEstimateGas(transaction).sendAsync().await()
+            if (ethEstimateGas.hasError()) {
+                addLog("Error estimating gas: ${ethEstimateGas.error.message}")
+                null
+            } else {
+                ethEstimateGas.amountUsed
+            }
+        } catch (e: Exception) {
+            // Handle error
+            addLog("Error estimating gas limit: ${e.message}")
+            null
+        }
+    }
+
+    private suspend fun sendSignedTransaction(signedTransactionData: String): String? =
+        withContext(Dispatchers.IO) {
+            try {
+                val ethSendTx: EthSendTransaction = web3j.ethSendRawTransaction(signedTransactionData)
+                    .sendAsync()
+                    .await()
+
+                if (ethSendTx.hasError()) {
+                    addLog("Error sending transaction: ${ethSendTx.error.message}")
+                    null
+                } else {
+                    val txHash = ethSendTx.transactionHash
+                    addLog("Transaction sent successfully, txHash: $txHash")
+                    txHash
+                }
+            } catch (e: Exception) {
+                addLog("Exception sending transaction: ${e.message}")
+                null
+            }
+        }
 
     fun initClient(activityContext: Context) {
         val ggService = GoogleServiceImpl(context, SERVER_ID)
@@ -87,11 +180,12 @@ class DemoViewModel @Inject constructor(
         activeCardClient = ActiveCardClientImpl(context, activeCardCallback, mpcClient)
     }
 
+    private fun addLog(log:String) = _uiState.update { it.copy(logs = it.logs.toMutableList().plus(log)) }
     fun startScan(qrCode: String) {
         val qrResult = gson.fromJson(qrCode, ActiveCardQr::class.java)
-        Log.d("AC_Simulator", "QR code result: $qrResult")
         activeCardQr = qrResult
         scanJob = viewModelScope.launch {
+            addLog("Start scan for device: ${qrResult.deviceName}")
             Log.d("AC_Simulator", "Start scan for device: ${qrResult.deviceName}")
             activeCardClient
                 ?.scanForDevices()
@@ -104,6 +198,7 @@ class DemoViewModel @Inject constructor(
 
     fun connectToDevice(onDone: () -> Unit) {
         activeCardDevice?.let {
+            addLog("Start connect to device: ${it.name} - ${it.deviceId}")
             Log.d("AC_Simulator", "Start connect to device: ${it.name} - ${it.deviceId}")
             activeCardClient?.connectToDevice(it.deviceId)
         }
@@ -111,6 +206,7 @@ class DemoViewModel @Inject constructor(
             activeCardClient
                 ?.connectionUpdate
                 ?.collect { connection ->
+                    addLog("Connection status: $connection")
                     Log.d("AC_Simulator", "Connection status: $connection")
                     when (connection) {
                         is ConnectionUpdateSuccess -> {
@@ -135,33 +231,35 @@ class DemoViewModel @Inject constructor(
         }
     }
 
+    private var authenticationJob: Job? = null
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun startAuthenticationFlow(onDone: () -> Unit) {
+        addLog("Start authentication flow")
         Log.d("AC_Simulator", "Start authentication flow")
         val id = activeCardDevice?.deviceId ?: return
         val ac = activeCardQr ?: return
-        scope.launch IoScope@{
-            val identityKey = client?.generateIdentityKeyPair()
-            Log.d("AC_Simulator", "Start authentication flow")
-            identityKey?.let { mobileKey ->
-                activeCardClient
-                    ?.authenticateFlow(id, ac.identityPublicKey.stringToByteArray(), mobileKey.publicKey, mobileKey.privateKey) {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            udmRepository?.registerAcDevice(id, ac.deviceName, ac.firmwareVersion)
-                                ?.flatMapLatest {
-                                    udmRepository?.getLinkDevices() ?: throw Exception()
-                                }
-                                ?.map {
-                                    Log.d("AC_Simulator", "Link devices: $it")
-                                    onDone()
-                                }
-                                ?.launchIn(this)
-
-                        }
-
-                    }
-
-            }
+        val identityKey = client?.generateIdentityKeyPair()
+        Log.d("AC_Simulator", "Start authentication flow")
+        identityKey?.let { mobileKey ->
+            authenticationJob = activeCardClient
+                ?.authenticateFlow(id, ac.identityPublicKey.stringToByteArray(), mobileKey.publicKey, mobileKey.privateKey, onLog = { addLog(it) }) {
+                    CoroutineScope(Dispatchers.Main).launch { onDone() }
+                    authenticationJob?.cancel()
+                    authenticationJob = null
+//                    CoroutineScope(Dispatchers.Main).launch {
+//                        udmRepository?.registerAcDevice(id, ac.deviceName, ac.firmwareVersion)
+//                            ?.flatMapLatest {
+//                                udmRepository?.getLinkDevices() ?: throw Exception()
+//                            }
+//                            ?.map {
+//                                Log.d("AC_Simulator", "Link devices: $it")
+//                                onDone()
+//                                authenticationJob?.cancel()
+//                                authenticationJob = null
+//                            }
+//                            ?.launchIn(this)
+//                    }
+                }
         }
     }
 
@@ -169,12 +267,14 @@ class DemoViewModel @Inject constructor(
         viewModelScope.launch {
             passkey?.register(username)
                 ?.catch {
+                    addLog("Register passkey error: $it")
                     Log.d("MainActivityViewModel", "Register passkey error: $it")
                     CoroutineScope(Dispatchers.Main).launch {
                         Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show()
                     }
                 }
                 ?.collect { response ->
+                    addLog("Register passkey response: ${response.verified}")
                     Log.d("MainActivityViewModel", "Register passkey response: $response")
                 }
         }
@@ -184,9 +284,14 @@ class DemoViewModel @Inject constructor(
         CoroutineScope(Dispatchers.Default).launch {
             passkey?.authenticate(username)
                 ?.catch {
+                    addLog("Authenticate passkey error: $it")
                     Log.d("MainActivityViewModel", "Authenticate passkey error: $it")
+                    CoroutineScope(Dispatchers.Main).launch {
+                        Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show()
+                    }
                 }
                 ?.collect { response ->
+                    addLog("Authenticate passkey response: ${response.verified}")
                     Log.d("MainActivityViewModel", "Authenticate passkey response: $response")
                     client?.setAccessToken(response.accessToken)
                     udmRepository = UDMRepositoryImpl(
@@ -200,21 +305,61 @@ class DemoViewModel @Inject constructor(
 
     var keygenGroup: MpcGroup? = null
 
-    fun startKeygenFlow() {
+    private fun startFlow() {
         val id = activeCardDevice?.deviceId ?: return
-        if (keygenJob != null) return
-        keygenJob = activeCardClient?.keygen(id)
+        if (keygenJob == null) keygenJob = activeCardClient?.activeCardFlow(id) { addLog(it) }
+    }
+
+    fun signing() {
+        viewModelScope.launch {
+            startFlow()
+            client?.getBackup()
+                ?.flatMapLatest { backup ->
+                    val paillierGroup = backup.paillierGroup ?: throw Exception()
+                    val masterWallet = backup.masterWallets.last()
+                    val toAddress = "0x682A0B80a4f6966c0950513a8A6D4C6074ff077c"
+                    val ethWallet = masterWallet.wallets.first()
+                    val nonce = getAccountNonce(ethWallet.address) ?: throw Exception()
+                    val gasPrice = getCurrentGasPrice() ?: throw Exception()
+                    val getEstGas = estimateGasLimit(ethWallet.address, toAddress, null, BigInteger.valueOf(0.0001.toLong()))?: throw Exception()
+                    client!!.buildETHTransaction(
+                        paillierGroupId = paillierGroup.id,
+                        keygenGroupId = masterWallet.groupId,
+                        walletAddress = ethWallet.address,
+                        wallet = ethWallet,
+                        amount = "100000000000000",
+                        gasLimit = getEstGas.toString(),
+                        gasPrice = gasPrice.toString(),
+                        nonce = nonce.toString(),
+                        chainId = "11155111",
+                        toAddress = toAddress,
+                        ignoringPayloadVerify = false,
+                        data = byteArrayOf(),
+                        amountInUsd = 0,
+                    )
+                }
+                ?.catch {
+                    addLog("Transaction error: $it")
+                }
+                ?.collect { data ->
+                    addLog("Transaction done: ${data.toHexString()}")
+                    sendSignedTransaction(data.toHexString())
+                }
+
+        }
     }
 
     fun registerPaillierGroup() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                startKeygenFlow()
+                startFlow()
                 val paillierGroup = client!!.createPaillierGroup(3)
                 client?.registerNewLocalPartyToMpcGroup(paillierGroup.id)
                 delay(2000)
                 client?.newPaillier(paillierGroup.id)
+                addLog("Register paillier group success id: ${paillierGroup.id}")
             } catch (e: Exception) {
+                addLog("Paillier error: $e - ${e.cause?.message}")
                 Log.d("AC_Simulator", "Paillier error: $e - ${e.cause?.message}")
             }
         }
@@ -223,13 +368,15 @@ class DemoViewModel @Inject constructor(
     fun registerGroup() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                startKeygenFlow()
+                startFlow()
                 val paillierGroup = client!!.getMpcGroups(pageSize = 5, pageToken = "").first().groups.first()
                 keygenGroup  = client!!.createMpcKeygenGroup(3, "AC", paillierGroup.id)
                 Log.d("AC_Simulator", "Keygen group id: ${keygenGroup!!.id}")
                 client?.registerNewLocalPartyToMpcGroup(keygenGroup!!.id)
                 client?.newMnemonicKeyGen(keygenGroup!!, Constants.mnemonic, Constants.mnemonicWallets)
+                addLog("Register keygen group success id: ${keygenGroup!!.id}")
             } catch (e: Exception) {
+                addLog("Keygen error: $e - ${e.cause?.message}")
                 Log.d("AC_Simulator", "Keygen error: $e - ${e.cause?.message}")
             }
         }
@@ -240,6 +387,10 @@ class DemoViewModel @Inject constructor(
         scanJob = null
     }
 }
+
+data class DemoState(
+    val logs: List<String> = emptyList()
+)
 
 fun Context.getDeviceUuid(): String {
     // Returns a 64-bit hex string, e.g. "9774d56d682e549c"

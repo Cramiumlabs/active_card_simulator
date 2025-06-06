@@ -14,12 +14,12 @@ import com.cramium.sdk.utils.stringToByteArray
 import com.cramium.sdk.utils.toHexString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -39,6 +39,10 @@ class SimulatorViewModel @Inject constructor(
     private val acSimulator: ActiveCardServer
     private var keygenJob: Job? = null
 
+    private val _logs: MutableStateFlow<List<String>> = MutableStateFlow(emptyList())
+    val logs get() = _logs.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private fun addLog(log: String) = _logs.update { it.toMutableList().plus(log) }
     init {
         val acServerCallback: ActiveCardServerCallback = ActiveCardServerCallback()
         mpcClient = MpcClientImpl(
@@ -52,7 +56,7 @@ class SimulatorViewModel @Inject constructor(
             isLocalParty = true
         )
         acSimulator = ActiveCardServerImpl(applicationContext, acServerCallback, mpcClient)
-        keygenJob =  acSimulator.keygen()
+        keygenJob =  acSimulator.activeCardFlow() { addLog(it) }
     }
     private val _uiState = MutableStateFlow(ACSimulatorState())
     val uiState: StateFlow<ACSimulatorState> = _uiState
@@ -70,6 +74,7 @@ class SimulatorViewModel @Inject constructor(
             .apply()
         _uiState.value =
             _uiState.value.copy(isRegister = true, userName = userName, deviceName = deviceName)
+        addLog("Save username: $userName and device name: $deviceName")
         Log.d("AC_Simulator", "Save username: $userName and device name: $deviceName")
         stop()
         start()
@@ -114,10 +119,13 @@ class SimulatorViewModel @Inject constructor(
 
         viewModelScope.launch {
             Log.d("AC_Simulator", "Start authentication flow")
+            addLog("Start authentication flow")
             acSimulator.observeAuthenticationFlow(
                 publicKey,
                 privateKey,
+                onLog = { addLog(it) },
                 saveMobilePublicKey = {
+                    addLog("Authentication successful mobile key: ${it.toHexString()}")
                     Log.d("AC_Simulator", "Authentication successful mobile key: ${it.toHexString()}")
                     val prefs =
                         applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
