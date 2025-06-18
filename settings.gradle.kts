@@ -24,7 +24,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url = uri("file://${rootProject.projectDir.parent}/activecard") }
-        maven { url = uri("file://${rootProject.projectDir.parent}/repo") }
+        maven { url = uri("file://${rootProject.projectDir.parent}/mpc-android-sdk/repo") }
     }
 }
 
@@ -34,5 +34,5 @@ include(":sdk")
 include(":activecard")
 
 // Specify the correct relative path to sdk module
-project(":sdk").projectDir = file("../sdk")
+project(":sdk").projectDir = file("../mpc-android-sdk/sdk")
 project(":activecard").projectDir = file ("../activecard")
