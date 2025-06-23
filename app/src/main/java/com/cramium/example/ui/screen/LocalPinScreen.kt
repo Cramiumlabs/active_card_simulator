@@ -50,14 +50,14 @@ internal fun LocalPinUIScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             PinCodeInput(modifier = Modifier.fillMaxWidth()) {
-
+                // TODO: Do it later
             }
             Spacer(modifier = Modifier.weight(1f))
 
             PrimaryActionButton(
                 text = "Confirm",
             ) {
-
+                // TODO: Do it later
             }
             Spacer(modifier = Modifier.height(64.dp))
 

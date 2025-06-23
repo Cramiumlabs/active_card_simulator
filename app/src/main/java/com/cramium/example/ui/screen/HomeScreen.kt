@@ -100,5 +100,5 @@ sealed interface AppEvent {
     data object TransactionApproved : AppEvent
     data object TransactionRejected : AppEvent
 
-    data object Nothing : AppEvent
+    data object None : AppEvent
 }

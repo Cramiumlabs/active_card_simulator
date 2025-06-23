@@ -51,7 +51,7 @@ internal fun SecuritySettingUIScreen(
 
             val menuItems = remember {
                 listOf(
-                    "Accessible only when connected" to AppEvent.Nothing,
+                    "Accessible only when connected" to AppEvent.None,
                     "Setup Local Pin" to AppEvent.LocalPin,
                 )
             }
