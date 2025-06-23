@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,49 +44,42 @@ internal fun TransactionApprovedUIScreen(
     passkeyCode: String,
     ethAmount: String,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
+
+    Scaffold(topBar = {
         TopHeader(title = "Transaction Approved")
-
-        Spacer(modifier = Modifier.height(24.dp))
-
+    }, content = { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(Color.White)
+                .padding(innerPadding)
+                .padding(16.dp), verticalArrangement = Arrangement.Top
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Check, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Approve", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Text("Biometric", color = Color.Gray)
-                Text(biometricCode, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text("Passkey Auth", color = Color.Gray)
-                        Text(passkeyCode, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    }
-                    Text(ethAmount, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Check, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Approve", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
 
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text("Biometric", color = Color.Gray)
+            Text(biometricCode, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Passkey Auth", color = Color.Gray)
+                    Text(passkeyCode, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+                Text(ethAmount, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
         }
-    }
+
+    })
 
 }
 

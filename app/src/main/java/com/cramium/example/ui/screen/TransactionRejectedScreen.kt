@@ -1,12 +1,12 @@
 package com.cramium.example.ui.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,62 +33,52 @@ fun TransactionRejectedScreen() {
 @Composable
 internal fun TransactionRejectedUIScreen(
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        TopHeader(title = "Transaction Approved")
 
-        Spacer(modifier = Modifier.height(24.dp))
-
+    Scaffold(topBar = {
+        TopHeader(title = "Transaction Rejected")
+    }, content = { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(Color.White)
+                .padding(innerPadding)
+                .padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(modifier = Modifier.height(48.dp))
 
+            Text(
+                "Transaction Rejected",
+                color = Color.Red,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
 
-                Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    "Transaction Rejected",
-                    color = Color.Red,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
+            Text(
+                text = "The transaction wasn’t approved.\nPlease confirm the details and try again if needed.",
+                textAlign = TextAlign.Center,
+                fontSize = 14.sp,
+                color = Color.DarkGray
+            )
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
-                Text(
-                    text = "The transaction wasn’t approved.\nPlease confirm the details and try again if needed.",
-                    textAlign = TextAlign.Center,
-                    fontSize = 14.sp,
-                    color = Color.DarkGray
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                PrimaryActionButton(
-                    text = "Review Tx",
-                ) {
-                    // Handle event
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                SecondaryActionButton(
-                    text = "Close",
-                ) {
-                    // Handle event
-                }
-                Spacer(modifier = Modifier.height(64.dp))
-
-
+            PrimaryActionButton(
+                text = "Review Tx",
+            ) {
+                // Handle event
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            SecondaryActionButton(
+                text = "Close",
+            ) {
+                // Handle event
             }
         }
-    }
+
+
+    })
 
 }
 

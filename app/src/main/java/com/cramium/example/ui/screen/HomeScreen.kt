@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -45,38 +46,43 @@ fun HomeScreen() {
 internal fun HomeUIScreen(
     event: (AppEvent) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        TopHeader(title = "Homepage")
+    Scaffold(
+        topBar = {
+            TopHeader(title = "Homepage")
+        },
+        content = { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White)
+                    .padding(innerPadding)
+                    .padding(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Spacer(modifier = Modifier.height(8.dp))
 
-        Spacer(modifier = Modifier.height(24.dp))
+                    val menuItems = remember {
+                        listOf(
+                            "Menu" to AppEvent.Menu,
+                            "MPC Groups" to AppEvent.MpcGroup,
+                            "Security Settings" to AppEvent.SecuritySetting,
+                            "Transaction Approval" to AppEvent.TransactionApproval,
+                        )
+                    }
 
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            Spacer(modifier = Modifier.height(8.dp))
+                    menuItems.forEach { (title, action) ->
+                        MenuItemButton(title = title, onClick = { event(action) })
+                    }
 
-            val menuItems = remember {
-                listOf(
-                    "Menu" to AppEvent.Menu,
-                    "MPC Groups" to AppEvent.MpcGroup,
-                    "Security Settings" to AppEvent.SecuritySetting,
-                    "Transaction Approval" to AppEvent.TransactionApproval,
-                )
+                }
             }
-
-            menuItems.forEach { (title, action) ->
-                MenuItemButton(title = title, onClick = { event(action) })
-            }
-
         }
-    }
+    )
 
 }
 
 
-@Preview(showBackground = true)
+@Preview
 @Composable
 fun HomeScreenPreview() {
     ExampleTheme {

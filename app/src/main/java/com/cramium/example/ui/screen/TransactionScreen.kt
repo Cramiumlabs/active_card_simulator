@@ -2,12 +2,12 @@ package com.cramium.example.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -37,22 +37,18 @@ fun TransactionScreen() {
 internal fun TransactionUIScreen(
     event: (AppEvent) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
+    Scaffold(topBar = {
         TopHeader(title = "Transaction Summary")
-
-        Spacer(modifier = Modifier.height(24.dp))
-
+    }, content = { innerPadding ->
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+                .padding(innerPadding)
+                .padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Name",
-                fontWeight = FontWeight.Normal,
-                color = Color.Gray
+                text = "Name", fontWeight = FontWeight.Normal, color = Color.Gray
             )
             Text(
                 text = "Personal Group",
@@ -62,9 +58,7 @@ internal fun TransactionUIScreen(
             )
 
             Text(
-                text = "MPC Configuration",
-                fontWeight = FontWeight.Normal,
-                color = Color.Gray
+                text = "MPC Configuration", fontWeight = FontWeight.Normal, color = Color.Gray
             )
             Text(
                 text = "2-of-4",
@@ -74,17 +68,13 @@ internal fun TransactionUIScreen(
             )
 
             Text(
-                text = "Last Backup",
-                fontWeight = FontWeight.Normal,
-                color = Color.Gray
+                text = "Last Backup", fontWeight = FontWeight.Normal, color = Color.Gray
             )
             Text(
-                text = "29 May 2025",
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
+                text = "29 May 2025", fontWeight = FontWeight.Bold, color = Color.Black
             )
         }
-    }
+    })
 
 }
 
