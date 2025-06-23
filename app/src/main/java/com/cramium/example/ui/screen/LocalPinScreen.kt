@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.cramium.example.LocalNavigation
 import com.cramium.example.ui.component.PinCodeInput
 import com.cramium.example.ui.component.PrimaryActionButton
 import com.cramium.example.ui.component.TopHeader
@@ -21,7 +20,7 @@ import com.cramium.example.ui.theme.ExampleTheme
 
 @Composable
 fun LocalPinScreen() {
-    val nav = LocalNavigation.current
+//    val nav = LocalNavigation.current
     LocalPinUIScreen { event ->
         when (event) {
             else -> Unit

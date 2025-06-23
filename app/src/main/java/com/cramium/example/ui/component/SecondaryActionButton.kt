@@ -26,7 +26,7 @@ fun SecondaryActionButton(
     ) {
     OutlinedButton(
         onClick = onClick,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(56.dp),
         border = BorderStroke(1.dp, Color.Black),
