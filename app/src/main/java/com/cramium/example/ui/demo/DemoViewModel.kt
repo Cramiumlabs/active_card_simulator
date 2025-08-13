@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.future.await
@@ -95,7 +96,7 @@ class DemoViewModel @Inject constructor(
 
     private val web3j: Web3j = Web3j.build(
         HttpService(
-            "https://ethereum-sepolia.core.chainstack.com/8e987b5ee37b8ca8da7ae14f18eecc18",
+            "https://ethereum-sepolia.core.chainstack.com/45687b9558255137a0c9c1627d28f644",
             okHttpClient
         )
     )
@@ -338,6 +339,7 @@ class DemoViewModel @Inject constructor(
                         amountInUsd = 0,
                     )
                 }
+                ?.flowOn(Dispatchers.IO)
                 ?.catch {
                     addLog("Transaction error: $it")
                 }
