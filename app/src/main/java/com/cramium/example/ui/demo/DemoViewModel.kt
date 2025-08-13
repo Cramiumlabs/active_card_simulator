@@ -14,6 +14,7 @@ import com.cramium.activecard.ble.ConnectionUpdateSuccess
 import com.cramium.activecard.ble.ScanInfo
 import com.cramium.activecard.ble.model.ConnectionState
 import com.cramium.activecard.simulator.ActiveCardQr
+import com.cramium.example.utils.Constants
 import com.cramium.sdk.client.MpcClient
 import com.cramium.sdk.client.MpcClientImpl
 import com.cramium.sdk.client.Passkey
@@ -22,7 +23,6 @@ import com.cramium.sdk.model.mpc.MpcGroup
 import com.cramium.sdk.repositories.UDMRepository
 import com.cramium.sdk.repositories.UDMRepositoryImpl
 import com.cramium.sdk.service.GoogleServiceImpl
-import com.cramium.sdk.utils.Constants
 import com.cramium.sdk.utils.stringToByteArray
 import com.cramium.sdk.utils.toHexString
 import com.google.gson.FieldNamingPolicy
