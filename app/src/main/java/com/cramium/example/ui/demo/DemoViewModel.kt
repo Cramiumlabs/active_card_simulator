@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -55,7 +56,7 @@ import org.web3j.protocol.http.HttpService
 import java.math.BigInteger
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
-
+import org.sol4k.Connection
 @HiltViewModel
 
 class DemoViewModel @Inject constructor(
@@ -100,6 +101,7 @@ class DemoViewModel @Inject constructor(
             okHttpClient
         )
     )
+    private val connection = Connection("https://solana-devnet.core.chainstack.com/11158aef7eaf0a9c01fe6e31ddd07d42")
 
     private suspend fun getCurrentGasPrice(): BigInteger? {
         return try {
@@ -149,7 +151,6 @@ class DemoViewModel @Inject constructor(
                 val ethSendTx: EthSendTransaction = web3j.ethSendRawTransaction(signedTransactionData)
                     .sendAsync()
                     .await()
-
                 if (ethSendTx.hasError()) {
                     addLog("Error sending transaction: ${ethSendTx.error.message}")
                     null
@@ -311,7 +312,45 @@ class DemoViewModel @Inject constructor(
         if (keygenJob == null) keygenJob = activeCardClient?.activeCardFlow(id) { addLog(it) }
     }
 
-    fun signing() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun signingSolana() {
+        viewModelScope.launch {
+            startFlow()
+            client?.getBackup()
+                ?.flatMapLatest { backup ->
+                    val paillierGroup = backup.paillierGroup ?: throw Exception()
+                    val masterWallet = backup.masterWallets.last()
+                    val toAddress = "7fk4ZUAfd1rjq5RXi7Uvjr9goA5jR1Kvz3kAwvzp8xbY"
+                    val ethWallet = masterWallet.wallets.first { it.chainId == "900" }
+                    client!!.buildSolTransaction(
+                        paillierGroupId = paillierGroup.id,
+                        keygenGroupId = masterWallet.groupId,
+                        wallet = ethWallet,
+                        amount = "100000",
+                        chainId = "solana-devnet",
+                        fromAddress = ethWallet.address,
+                        toAddress = toAddress,
+                        amountInUsd = 0,
+                    )
+                }
+                ?.catch {
+                    addLog("Transaction error: $it")
+                }
+                ?.flatMapLatest { data ->
+                    addLog("Transaction done: ${data.toHexString()}")
+                    val signature = connection.sendTransaction(data)
+                    flowOf(signature)
+                }
+                ?.flowOn(Dispatchers.IO)
+                ?.collect { signature ->
+                    Log.d("DemoViewModel", "Transaction done: $signature")
+                    addLog("Transaction sent successfully, txHash: $signature")
+                }
+
+        }
+    }
+
+    fun signingEth() {
         viewModelScope.launch {
             startFlow()
             client?.getBackup()
@@ -319,7 +358,7 @@ class DemoViewModel @Inject constructor(
                     val paillierGroup = backup.paillierGroup ?: throw Exception()
                     val masterWallet = backup.masterWallets.last()
                     val toAddress = "0x682A0B80a4f6966c0950513a8A6D4C6074ff077c"
-                    val ethWallet = masterWallet.wallets.first()
+                    val ethWallet = masterWallet.wallets.first { it.chainId == "1" }
                     val nonce = getAccountNonce(ethWallet.address) ?: throw Exception()
                     val gasPrice = getCurrentGasPrice() ?: throw Exception()
                     val getEstGas = estimateGasLimit(ethWallet.address, toAddress, null, BigInteger.valueOf(0.0001.toLong()))?: throw Exception()

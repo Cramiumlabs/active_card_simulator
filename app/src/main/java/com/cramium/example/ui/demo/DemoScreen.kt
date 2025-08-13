@@ -33,7 +33,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -146,12 +145,18 @@ fun DemoScreen(
             }
 
             Button(
-                onClick = { vm.signing() },
+                onClick = { vm.signingEth() },
                 modifier = Modifier.padding(4.dp)
             ) {
                 Text("Send eth transaction", style = textStyle)
             }
 
+            Button(
+                onClick = { vm.signingSolana() },
+                modifier = Modifier.padding(4.dp)
+            ) {
+                Text("Send solana transaction", style = textStyle)
+            }
 
             LazyColumn(
                 state = listState,
